@@ -16,11 +16,11 @@ typedef struct
 Vector* vector_create();
 void vector_destroy(Vector*);
 
-void VecPush(Vector*,int);
-int VecPop(Vector*);
-int VecGet(Vector*,int);
-void VecSet(Vector*,int,int);
-int VecSize(Vector*);
+void Push(Vector*,int);
+int Pop(Vector*);
+int Get(Vector*,int);
+void Set(Vector*,int,int);
+int Size(Vector*);
 
 
 
