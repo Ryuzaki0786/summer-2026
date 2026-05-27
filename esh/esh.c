@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
+
 #include <sys/wait.h>
 
 void remove_newline(char*);
@@ -13,12 +15,21 @@ void executeSmaller_Than(char*,char*);
 int main()
 {
     char input[256];
+    signal(SIGINT,SIG_IGN);
 
     while(1)
     {
         printf("esh> ");
         fgets(input,256,stdin);
+
+        if(fgets(input,256,stdin) == NULL)
+        {
+            printf("\n");
+            break;
+        }
+
         remove_newline(input);
+        
         if(input[0] == '\0') continue;
 
         char* pipe_pos = strchr(input,'|');
@@ -97,6 +108,7 @@ int main()
 
         if(pid == 0)
         {
+            signal(SIGINT,SIG_DFL);
             execvp(args[0],args);
             printf("esh: command not found: %s\n",args[0]);
             exit(1);
