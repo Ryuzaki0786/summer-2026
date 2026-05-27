@@ -63,6 +63,11 @@ int main()
         }
         args[argc] = NULL;
 
+        if(strcmp(args[0],"exit") == 0)
+        {
+            break;
+        }
+
         //For handling cd and cd..
         if(strcmp(args[0],"cd")==0)
         {
@@ -89,6 +94,7 @@ int main()
         else{
             waitpid(pid,NULL,0);
         }
+
 
     }
 
