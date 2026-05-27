@@ -8,6 +8,7 @@
 void remove_newline(char*);
 void execute_pipe(char*,char*);
 void executeGreater_Than(char*,char*);
+void executeSmaller_Than(char*,char*);
 
 int main()
 {
@@ -38,6 +39,16 @@ int main()
             char* left =  input;
             char* right = GreaterThan_Pos +  1;
             executeGreater_Than(left,right);
+            continue;
+        }
+
+        char* SmallerThan_Pos = strchr(input, '<');
+        if(SmallerThan_Pos != NULL)
+        {
+            *SmallerThan_Pos = '\0';
+            char* left =  input;
+            char* right = SmallerThan_Pos +  1;
+            executeSmaller_Than(left,right);
             continue;
         }
 
@@ -243,6 +254,46 @@ void executeGreater_Than(char* left_cmd,char* right_cmd)
     {
         int fd = open(right_args[0],O_WRONLY | O_CREAT | O_TRUNC, 0644);
         dup2(fd, 1);  // stdout now goes to the file
+        close(fd);
+        execvp(left_args[0],left_args);
+        printf("esh: command not found: %s\n",left_args[0]);
+        exit(1);
+    }
+    else{
+        waitpid(pid,NULL,0);
+    }
+
+}
+
+
+void executeSmaller_Than(char* left_cmd,char* right_cmd)
+{
+    char* left_args[64];
+    int i = 0;
+    char* token = strtok(left_cmd," ");
+    while(token != NULL)
+    {
+        left_args[i++] = token;
+        token = strtok(NULL," ");
+    }
+    left_args[i] = NULL;
+
+    char* right_args[64];
+    i = 0;
+    token = strtok(right_cmd," ");
+    while(token != NULL)
+    {
+        right_args[i++] = token;
+        token = strtok(NULL," ");
+    }
+    right_args[i] = NULL;
+
+    pid_t pid = fork();
+
+    if(pid == 0)
+    {
+        int fd = open(right_args[0],O_RDONLY,0644);
+        dup2(fd, 0);  // stdin now goes to the file
         close(fd);
         execvp(left_args[0],left_args);
         printf("esh: command not found: %s\n",left_args[0]);
