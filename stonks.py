@@ -3,7 +3,7 @@ import sys
 import json
 
 
-API_KEY = "d85vnfpr01qmuqqbota0d85vnfpr01qmuqqbotag"
+API_KEY = ""
 
 #URL = f"https://finnhub.io/api/v1/quote?symbol=AAPL&token={API_KEY}"
 
