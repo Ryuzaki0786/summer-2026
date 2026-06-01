@@ -3,6 +3,8 @@ const {Pool} = require('pg');
 
 const app =  express();
 
+app.use(express.static('public'));
+
 const pool = new Pool({
     user: 'ekam',
     password: 'VI.X.MMV',

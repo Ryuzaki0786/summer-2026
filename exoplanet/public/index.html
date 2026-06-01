@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exoplanet Explorer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0a; color: #d4d4d4; font-family: 'Segoe UI', system-ui, sans-serif; padding: 40px; }
+        h1 { font-size: 28px; margin-bottom: 8px; color: #fff; }
+        h2 { font-size: 18px; margin: 30px 0 12px; color: #e0e0e0; }
+        p.sub { color: #666; font-size: 14px; margin-bottom: 30px; }
+        .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1100px; }
+        .chart-box { background: #141414; border: 1px solid #222; border-radius: 8px; padding: 20px; }
+        canvas { width: 100% !important; }
+        .search { background: #141414; border: 1px solid #222; border-radius: 8px; padding: 20px; max-width: 1100px; margin-top: 24px; }
+        input, select { background: #1a1a1a; border: 1px solid #333; color: #ddd; padding: 8px 12px; border-radius: 4px; margin-right: 8px; font-size: 14px; }
+        button { background: #2a2a5a; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #3a3a7a; }
+        table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #1c1c1c; }
+        th { color: #888; }
+        #results td { color: #bbb; }
+    </style>
+</head>
+<body>
+    <h1>Exoplanet Explorer</h1>
+    <p class="sub">5,700+ confirmed exoplanets from NASA's Exoplanet Archive</p>
+
+    <div class="charts">
+        <div class="chart-box">
+            <h2>Discovery Methods</h2>
+            <canvas id="methodsChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h2>Kepler's Third Law Verification</h2>
+            <canvas id="keplerChart"></canvas>
+        </div>
+    </div>
+
+    <div class="search">
+        <h2>Search Planets</h2>
+        <div style="margin-bottom: 12px;">
+            <select id="method">
+                <option value="">All Methods</option>
+                <option value="Transit">Transit</option>
+                <option value="Radial Velocity">Radial Velocity</option>
+                <option value="Microlensing">Microlensing</option>
+                <option value="Imaging">Imaging</option>
+            </select>
+            <input id="minMass" type="number" placeholder="Min mass (Jupiter)" step="0.1">
+            <input id="maxDist" type="number" placeholder="Max distance (pc)">
+            <button onclick="searchPlanets()">Search</button>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Host Star</th><th>Method</th><th>Year</th><th>Period (days)</th><th>Mass (Mj)</th><th>Distance (pc)</th></tr>
+            </thead>
+            <tbody id="results"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // Load discovery methods chart
+        fetch('/stats/methods')
+            .then(r => r.json())
+            .then(data => {
+                new Chart(document.getElementById('methodsChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(d => d.discoverymethod),
+                        datasets: [{
+                            label: 'Planets Discovered',
+                            data: data.map(d => parseInt(d.count)),
+                            backgroundColor: '#4a5fd8'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } },
+                            y: { ticks: { color: '#888' }, grid: { color: '#1c1c1c' } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            });
+
+        // Load Kepler's Law scatter plot
+        fetch('/stats/kepler')
+            .then(r => r.json())
+            .then(data => {
+                new Chart(document.getElementById('keplerChart'), {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Period² vs Axis³',
+                            data: data.map(d => ({
+                                x: Math.pow(d.pl_orbsmax, 3),
+                                y: Math.pow(d.pl_orbper, 2)
+                            })),
+                            backgroundColor: '#d4a84b88',
+                            pointRadius: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Semi-major Axis³ (AU³)', color: '#888' }, ticks: { color: '#888' }, grid: { color: '#1c1c1c' } },
+                            y: { title: { display: true, text: 'Orbital Period² (days²)', color: '#888' }, ticks: { color: '#888' }, grid: { color: '#1c1c1c' } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            });
+
+        // Search function
+        function searchPlanets() {
+            const method = document.getElementById('method').value;
+            const minMass = document.getElementById('minMass').value;
+            const maxDist = document.getElementById('maxDist').value;
+
+            let url = '/planets/search?';
+            if (method) url += `method=${method}&`;
+            if (minMass) url += `min_mass=${minMass}&`;
+            if (maxDist) url += `max_dist=${maxDist}&`;
+
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('results');
+                    tbody.innerHTML = data.map(p => `
+                        <tr>
+                            <td>${p.pl_name}</td>
+                            <td>${p.hostname}</td>
+                            <td>${p.discoverymethod}</td>
+                            <td>${p.disc_year || '-'}</td>
+                            <td>${p.pl_orbper ? p.pl_orbper.toFixed(2) : '-'}</td>
+                            <td>${p.pl_bmassj ? p.pl_bmassj.toFixed(3) : '-'}</td>
+                            <td>${p.sy_dist ? p.sy_dist.toFixed(1) : '-'}</td>
+                        </tr>
+                    `).join('');
+                });
+        }
+    </script>
+</body>
+</html>
