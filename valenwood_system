@@ -4,7 +4,7 @@ Valenwood Capital — Systematic Trading System v2
 A fully systematic, mathematically grounded trading framework for NSE.
 
 Architecture:
-    Module 1 — Data Layer          (fetch, cache, clean OHLCV)
+    Module 1 — Data Layer          (fetch, cache, clean OHLCV via Finnhub)
     Module 2 — Indicator Engine    (technical + statistical indicators)
     Module 3 — Signal Engine       (three strategies + composite scorer)
     Module 4 — Risk Engine         (Kelly sizing, ATR stops, portfolio heat)
@@ -22,7 +22,7 @@ Mathematical models:
     → Maximum Drawdown         (risk monitoring)
 
 Install:
-    pip install yfinance pandas numpy scipy tabulate colorama
+    pip install requests pandas numpy scipy tabulate colorama
 
 Run:
     python valenwood_system.py --mode screen
@@ -38,6 +38,7 @@ import json
 import time
 import argparse
 import warnings
+import requests
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field, asdict
 from typing import Optional
@@ -49,12 +50,6 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 
 # ── Optional dependencies ─────────────────────────────────────────────────
-try:
-    import yfinance as yf
-    YFINANCE_OK = True
-except ImportError:
-    YFINANCE_OK = False
-
 try:
     from scipy.stats import linregress
     SCIPY_OK = True
@@ -156,61 +151,152 @@ class Config:
 
 class DataFetcher:
     """
-    Fetches OHLCV data from yfinance with:
-    - In-memory caching (no repeated API calls per run)
-    - Polite rate limiting (2s sleep between requests)
-    - Deterministic mock data fallback for offline use
+    Fetches OHLCV data from Finnhub API.
+
+    Features:
+    - Converts NSE tickers automatically (ICICIBANK.NS → NSE:ICICIBANK)
+    - In-memory cache — each ticker fetched only once per run
+    - Respects Finnhub free tier: 60 calls/min (1 call/sec sleep)
+    - Deterministic mock fallback for offline/testing use
+    - Fetches live quote separately for real-time price in portfolio check
+
+    Finnhub candle endpoint:
+        GET /stock/candle?symbol=NSE:ICICIBANK&resolution=D&from=<unix>&to=<unix>
+        Returns: {o, h, l, c, v, t, s}  (s = "ok" if data found)
     """
+
+    FINNHUB_KEY = "d8f84chr01qub7kg9sr0d8f84chr01qub7kg9srg"
+    BASE_URL    = "https://finnhub.io/api/v1"
+
+    # NSE tickers that use different Finnhub symbols
+    TICKER_MAP  = {
+        "M&M.NS":      "NSE:M_M",
+        "BAJAJ-AUTO.NS": "NSE:BAJAJ-AUTO",
+    }
 
     def __init__(self):
         self._cache: dict = {}
+        self._session = requests.Session()
+        self._session.headers.update({"X-Finnhub-Token": self.FINNHUB_KEY})
+
+    def _to_finnhub(self, ticker: str) -> str:
+        """Convert .NS ticker to Finnhub NSE format."""
+        if ticker in self.TICKER_MAP:
+            return self.TICKER_MAP[ticker]
+        base = ticker.replace(".NS", "")
+        return f"NSE:{base}"
 
     def get(self, ticker: str, period: str = "2y") -> Optional[pd.DataFrame]:
         key = f"{ticker}_{period}"
         if key in self._cache:
             return self._cache[key]
 
-        if not YFINANCE_OK:
+        df = self._fetch_candles(ticker, period)
+        if df is None or df.empty:
+            print(f"  {c('[WARN]','y')} {ticker}: no data — using mock")
             df = self._mock(ticker, period)
-            self._cache[key] = df
-            return df
 
-        try:
-            time.sleep(2)
-            df = yf.Ticker(ticker).history(period=period)
-            if df is None or df.empty:
-                return None
-            df = self._clean(df)
-            self._cache[key] = df
-            return df
-        except Exception as e:
-            print(f"  {c('[WARN]','y')} {ticker}: {e}")
-            df = self._mock(ticker, period)
-            self._cache[key] = df
-            return df
-
-    def _clean(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-        df = df.dropna()
-        df = df[df["Volume"] > 0]
-        df.index = pd.to_datetime(df.index).tz_localize(None)
+        self._cache[key] = df
         return df
 
+    def get_quote(self, ticker: str) -> Optional[float]:
+        """
+        Fetch real-time quote for a single ticker.
+        Used by portfolio tracker for live LTP.
+        Returns current price or None.
+        """
+        symbol = self._to_finnhub(ticker)
+        try:
+            time.sleep(1)
+            r = self._session.get(
+                f"{self.BASE_URL}/quote",
+                params={"symbol": symbol},
+                timeout=10
+            )
+            if r.status_code == 200:
+                data = r.json()
+                price = data.get("c", 0)  # 'c' = current price
+                if price and price > 0:
+                    return round(float(price), 2)
+        except Exception as e:
+            print(f"  {c('[WARN]','y')} Quote fetch failed for {ticker}: {e}")
+        return None
+
+    def _fetch_candles(self, ticker: str, period: str) -> Optional[pd.DataFrame]:
+        """
+        Fetch daily OHLCV candles from Finnhub.
+        Finnhub free tier supports up to 1 year of daily data for NSE.
+        """
+        symbol  = self._to_finnhub(ticker)
+        days    = {"1y": 365, "2y": 730, "3y": 1095}.get(period, 730)
+        to_ts   = int(time.time())
+        from_ts = to_ts - days * 86400
+
+        try:
+            time.sleep(1)                # stay within 60 calls/min
+            r = self._session.get(
+                f"{self.BASE_URL}/stock/candle",
+                params={
+                    "symbol":     symbol,
+                    "resolution": "D",   # daily candles
+                    "from":       from_ts,
+                    "to":         to_ts,
+                },
+                timeout=15
+            )
+
+            if r.status_code != 200:
+                print(f"  {c('[WARN]','y')} {ticker}: HTTP {r.status_code}")
+                return None
+
+            data = r.json()
+
+            if data.get("s") != "ok":
+                print(f"  {c('[WARN]','y')} {ticker}: Finnhub status={data.get('s')}")
+                return None
+
+            df = pd.DataFrame({
+                "Open":   data["o"],
+                "High":   data["h"],
+                "Low":    data["l"],
+                "Close":  data["c"],
+                "Volume": data["v"],
+            }, index=pd.to_datetime(data["t"], unit="s"))
+
+            df.index.name = "Date"
+            df = df[df["Volume"] > 0].dropna()
+
+            if len(df) < 30:
+                print(f"  {c('[WARN]','y')} {ticker}: only {len(df)} candles")
+                return None
+
+            print(f"  {c('✓','g')} {ticker}: {len(df)} days fetched "
+                  f"({df.index[0].date()} → {df.index[-1].date()})")
+            return df
+
+        except requests.exceptions.Timeout:
+            print(f"  {c('[WARN]','y')} {ticker}: request timed out")
+            return None
+        except Exception as e:
+            print(f"  {c('[WARN]','y')} {ticker}: {e}")
+            return None
+
     def _mock(self, ticker: str, period: str) -> pd.DataFrame:
-        """Seeded mock data — same output every run for same ticker."""
-        seed = sum(ord(c) for c in ticker) % 10000
-        rng  = np.random.default_rng(seed)
-        days = {"1y": 252, "2y": 504, "3y": 756}.get(period, 504)
+        """
+        Seeded deterministic mock data for offline use.
+        Same ticker always produces the same data — reproducible testing.
+        """
+        seed  = sum(ord(ch) for ch in ticker) % 10000
+        rng   = np.random.default_rng(seed)
+        days  = {"1y": 252, "2y": 504, "3y": 756}.get(period, 504)
         dates = pd.bdate_range(end=datetime.today(), periods=days)
 
-        # Different market regimes for different tickers
-        trend    = rng.uniform(-0.0002, 0.0006)
-        vol      = rng.uniform(0.012, 0.025)
-        start    = rng.uniform(300, 2500)
-
-        returns  = rng.normal(trend, vol, days)
-        prices   = start * np.exp(np.cumsum(returns))
-        noise    = rng.uniform(0.002, 0.008, days)
+        trend   = rng.uniform(-0.0002, 0.0006)
+        vol     = rng.uniform(0.012, 0.025)
+        start   = rng.uniform(300, 2500)
+        returns = rng.normal(trend, vol, days)
+        prices  = start * np.exp(np.cumsum(returns))
+        noise   = rng.uniform(0.002, 0.008, days)
 
         return pd.DataFrame({
             "Open":   prices * (1 - noise / 2),
@@ -956,7 +1042,9 @@ class PortfolioTracker:
                 results.append({"Ticker": ticker, "Status": "NO DATA"})
                 continue
 
-            ltp = round(df["Close"].iloc[-1], 2)
+            # Try live Finnhub quote first, fall back to last candle close
+            live = self.fetcher.get_quote(ticker)
+            ltp  = live if live else round(df["Close"].iloc[-1], 2)
             prices[ticker] = ltp
 
             pnl_pct  = (ltp - avg) / avg * 100
