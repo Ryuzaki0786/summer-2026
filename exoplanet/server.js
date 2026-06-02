@@ -80,6 +80,18 @@ app.get('/stats/habitable',async(req,res) => {
         res.json(result.rows);
 });
 
+app.get('/stats/timeline',async(req,res) => {
+    const result = await pool.query(` SELECT disc_year, 
+            COUNT(*) as discovered,
+            SUM(COUNT(*)) OVER (ORDER BY disc_year) as cumulative 
+        FROM planets
+        WHERE disc_year IS NOT NULL
+        GROUP BY disc_year
+        ORDER BY disc_year
+        `);
+        res.json(result.rows);
+});
+
 app.listen(3000, () => {
     console.log('Exoplanet API running on http://localhost:3000');
 });
