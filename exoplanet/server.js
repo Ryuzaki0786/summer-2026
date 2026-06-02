@@ -63,6 +63,23 @@ app.get('/planets/search',async(req,res) => {
     res.json(result.rows);
 
 });
+
+app.get('/stats/habitable',async(req,res) => {
+    const result = await pool.query(` SELECT pl_name, hostname, pl_orbsmax, st_teff, st_rad, sy_dist,
+               ROUND((0.75 * SQRT(POWER(st_rad, 2) * POWER(st_teff / 5778.0, 4)))::numeric, 3) as hz_inner,
+               ROUND((1.5 * SQRT(POWER(st_rad, 2) * POWER(st_teff / 5778.0, 4)))::numeric, 3) as hz_outer
+        FROM planets
+        WHERE pl_orbsmax IS NOT NULL 
+          AND st_teff IS NOT NULL 
+          AND st_rad IS NOT NULL
+          AND pl_orbsmax BETWEEN 
+              0.75 * SQRT(POWER(st_rad, 2) * POWER(st_teff / 5778.0, 4)) AND
+              1.5 * SQRT(POWER(st_rad, 2) * POWER(st_teff / 5778.0, 4))
+        ORDER BY sy_dist `);
+
+        res.json(result.rows);
+});
+
 app.listen(3000, () => {
     console.log('Exoplanet API running on http://localhost:3000');
 });
