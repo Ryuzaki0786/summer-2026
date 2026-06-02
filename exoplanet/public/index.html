@@ -60,6 +60,14 @@
             <tbody id="results"></tbody>
         </table>
     </div>
+    <div class="chart-box">
+        <h2>Discovery Timeline</h2>
+        <canvas id="timelineChart"></canvas>
+    </div>
+    <div class="chart-box">
+        <h2>Habitable Zone Planets</h2>
+        <canvas id="habitableChart"></canvas>
+    </div>
 
     <script>
         // Load discovery methods chart
@@ -143,6 +151,58 @@
                     `).join('');
                 });
         }
+        // Discovery timeline
+    fetch('/stats/timeline')
+        .then(r => r.json())
+        .then(data => {
+            new Chart(document.getElementById('timelineChart'), {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.disc_year),
+                    datasets: [{
+                        label: 'Cumulative Discoveries',
+                        data: data.map(d => parseInt(d.cumulative)),
+                        borderColor: '#34d399',
+                        fill: false,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { ticks: { color: '#888' }, grid: { display: false } },
+                        y: { ticks: { color: '#888' }, grid: { color: '#1c1c1c' } }
+                    }
+                }
+            });
+        });
+
+    // Habitable zone planets
+    fetch('/stats/habitable')
+        .then(r => r.json())
+        .then(data => {
+            new Chart(document.getElementById('habitableChart'), {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Habitable Zone Planets',
+                        data: data.map(d => ({
+                            x: d.sy_dist,
+                            y: d.pl_orbsmax
+                        })),
+                        backgroundColor: '#d4a84b88',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { title: { display: true, text: 'Distance from Earth (pc)', color: '#888' }, ticks: { color: '#888' }, grid: { color: '#1c1c1c' } },
+                        y: { title: { display: true, text: 'Orbital Distance (AU)', color: '#888' }, ticks: { color: '#888' }, grid: { color: '#1c1c1c' } }
+                    }
+                }
+            });
+        });
     </script>
 </body>
 </html>
