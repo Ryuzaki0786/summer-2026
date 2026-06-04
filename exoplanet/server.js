@@ -92,6 +92,18 @@ app.get('/stats/timeline',async(req,res) => {
         res.json(result.rows);
 });
 
+app.get('/stats/ranking',async(req,res) => {
+    const result = await pool.query(` SELECT pl_name,discoverymethod,pl_bmassj,rank
+                                      FROM (
+                                                SELECT pl_name,discoverymethod,pl_bmassj, 
+                                                RANK() OVER (PARTITION BY discoverymethod ORDER BY pl_bmassj DESC) as rank
+                                                FROM planets WHERE pl_bmassj IS NOT NULL) ranked 
+                                    WHERE rank <= 3 ORDER BY 
+                                      discoverymethod, rank`);
+
+    res.json(result.rows);
+})
+
 app.listen(3000, () => {
     console.log('Exoplanet API running on http://localhost:3000');
 });
