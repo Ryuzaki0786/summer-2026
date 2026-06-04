@@ -102,7 +102,45 @@ app.get('/stats/ranking',async(req,res) => {
                                       discoverymethod, rank`);
 
     res.json(result.rows);
-})
+});
+
+app.get('/stats/trends',async(req,res) => {
+    const result = await pool.query(` WITH yearly_stats AS (
+    SELECT disc_year,
+           discoverymethod,
+           COUNT(*) as count
+    FROM planets
+    WHERE disc_year IS NOT NULL
+    GROUP BY disc_year, discoverymethod
+),
+method_totals AS (
+    SELECT discoverymethod, SUM(count) as total
+    FROM yearly_stats
+    GROUP BY discoverymethod
+)
+SELECT y.disc_year, y.discoverymethod, y.count,
+       ROUND((y.count * 100.0 / m.total)::numeric, 1) as pct_of_method
+FROM yearly_stats y
+JOIN method_totals m ON y.discoverymethod = m.discoverymethod
+WHERE m.total >= 50
+ORDER BY y.discoverymethod, y.disc_year; `);
+
+    res.json(result.rows);
+});
+
+
+app.get('/stats/growth',async(req,res) => {
+    const result = await pool.query(` SELECT disc_year,
+        COUNT(*) as discovered, 
+        LAG(COUNT(*)) OVER (ORDER BY disc_year) as prev_year,
+        COUNT(*) - LAG(COUNT(*)) OVER (ORDER BY disc_year) as growth
+        FROM planets 
+        WHERE disc_year IS NOT NULL
+        GROUP BY disc_year
+        ORDER BY disc_year`);
+
+        res.json(result.rows);
+});
 
 app.listen(3000, () => {
     console.log('Exoplanet API running on http://localhost:3000');
