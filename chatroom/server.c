@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "server.h"
 #include <arpa/inet.h>
 
 int main()
@@ -28,7 +29,7 @@ int main()
 
     
 
-    int clients[64];
+    Client clients[64];
     int client_count = 0;
     
     /*
@@ -39,7 +40,32 @@ int main()
             → Yes and data = 0: they left, remove them
             → No: skip, they're idle
             → Back to select(), wait again
+
+    Old Design Drawbacks :  it received bytes and forwarded them. 
+    It had no concept of "who" sent what. 
+    Every client was just a file descriptor number. If three people were chatting, you'd see messages with no idea who said them
     */
+
+    /*
+        CONNECTED (has_nickname = 0)
+            → receives first message
+            → saves nickname
+            → broadcasts "[name] has joined"
+    
+        IDENTIFIED (has_nickname = 1)
+            → receives messages
+            → broadcasts "[name]: message" to everyone else
+
+        DISCONNECTED (read returns 0)
+            → close fd
+            → remove from array
+    snprintf(formatted, sizeof(formatted), "[%s]: %s", ...) constructs a new string safely with a size limit. This prevents buffer overflows — if someone sends a 500-byte message and their nickname is 30 bytes, we don't write past the end of our array.
+
+    New Approach : This is a fundamental concept in server design. 
+    Instead of just tracking a file descriptor, we track a session — a struct that holds everything you know about that client. 
+    Right now that's their fd, their nickname, and whether they've set a nickname yet. 
+    */
+    
     while(1)
     {
         fd_set read_fds;
@@ -51,10 +77,10 @@ int main()
 
         for(int i = 0; i< client_count;i++)
         {
-            FD_SET(clients[i],&read_fds);
-            if(clients[i] > max_fd)
+            FD_SET(clients[i].fd,&read_fds);
+            if(clients[i].fd > max_fd)
             {
-                max_fd = clients[i];
+                max_fd = clients[i].fd;
             }
         }
 
@@ -62,40 +88,59 @@ int main()
         if(FD_ISSET(server_fd,&read_fds))
         {
             int new_client =  accept(server_fd,NULL,NULL);
-            clients[client_count++] = new_client;
+            clients[client_count].fd = new_client;
+            clients[client_count].has_nickname = 0;
+            client_count++;
+            
             printf("New client connected! Total: %d\n", client_count);
         }
         
         for(int i = 0; i< client_count;i++)
         {
-            if(FD_ISSET(clients[i],&read_fds))
+            if(FD_ISSET(clients[i].fd,&read_fds))
             {
 
                 char buffer[256];
-                int n = recv(clients[i],buffer,sizeof(buffer),0);
+                int n = recv(clients[i].fd,buffer,sizeof(buffer),0);
 
                 if(n <= 0)
                 {
-                    close(clients[i]);
-                    clients[i] = clients[--client_count];
+                    close(clients[i].fd);
+                    clients[i].fd = clients[--client_count].fd;
                 }
                 else
                 {
                     buffer[n] = '\0';
-                    printf("Received: %s",buffer);
-
-                    for(int j = 0; j<client_count;j++)
+                    if(clients[i].has_nickname == 0)
                     {
-                        if(j != i)
+                        buffer[strcspn(buffer,"\n")] = '\0';
+                        strncpy(clients[i].nickname,buffer,31);
+                        clients[i].has_nickname = 1;
+
+                        char join_msg[256];
+                        snprintf(join_msg,sizeof(join_msg),"[%s] has joined the chat\n",clients[i].nickname);
+                        printf("%s",join_msg);
+                        for(int j = 0; j < client_count;j++)
                         {
-                            write(clients[j],buffer,n);
+                            if(j != i)
+                            {
+                                write(clients[j].fd,join_msg,strlen(join_msg));
+                            }
                         }
-                        
                     }
+                    else{
+                        char formatted[512];
+                        snprintf(formatted,sizeof(formatted),"[%s]: %s",clients[i].nickname,buffer);
+                        printf("%s",formatted);
+                        for(int j = 0; j < client_count;j++)
+                        {
+                            if(j != i) write(clients[j].fd,formatted,strlen(formatted));
+                        }
+                    }
+                    
                 }
             }
         }
-
 
     }
 }
