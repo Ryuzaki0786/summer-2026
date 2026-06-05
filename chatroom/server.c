@@ -105,8 +105,17 @@ int main()
 
                 if(n <= 0)
                 {
+                    char leave_msg[256];
+                    snprintf(leave_msg,sizeof(leave_msg),"[%s] has left the chat\n",clients[i].nickname);
+                    printf("%s",leave_msg);
+            
                     close(clients[i].fd);
                     clients[i].fd = clients[--client_count].fd;
+
+                    for(int j = 0;j <client_count;j++)
+                    {
+                        write(clients[j].fd,leave_msg,strlen(leave_msg));
+                    }
                 }
                 else
                 {
