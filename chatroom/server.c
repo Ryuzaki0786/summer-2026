@@ -129,12 +129,35 @@ int main()
                         }
                     }
                     else{
-                        char formatted[512];
-                        snprintf(formatted,sizeof(formatted),"[%s]: %s",clients[i].nickname,buffer);
-                        printf("%s",formatted);
-                        for(int j = 0; j < client_count;j++)
+
+                        if(strncmp(buffer,"/msg ",5) == 0)
                         {
-                            if(j != i) write(clients[j].fd,formatted,strlen(formatted));
+                            //Parse: "/msg Kent hey there"
+                            char target_name[32];
+                            char private_msg[256];
+                            sscanf(buffer,"/msg %s %[^\n]",target_name,private_msg);
+
+                            //Finding the target client
+                            for(int j = 0; j < client_count;j++)
+                            {
+                                if(strcmp(clients[j].nickname,target_name) == 0)
+                                {
+                                    char formatted[512];
+                                    snprintf(formatted,sizeof(formatted),"[PM from %s]: %s\n",clients[i].nickname,private_msg);
+                                    write(clients[j].fd,formatted,strlen(formatted));
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            char formatted[512];
+                            snprintf(formatted,sizeof(formatted),"[%s]: %s",clients[i].nickname,buffer);
+                            printf("%s",formatted);
+                            for(int j = 0; j < client_count;j++)
+                            {
+                                if(j != i) write(clients[j].fd,formatted,strlen(formatted));
+                            }
                         }
                     }
                     
