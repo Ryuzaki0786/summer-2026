@@ -42,10 +42,13 @@ namespace quantum
             void print() const;
     };
 
-    template <typename T> 
+    // Creates a rows x cols matrix with every element zero-initialized (T(0)).
+    // The flat vector is sized rows*cols; element (i,j) maps to index i*cols+j.
+    template <typename T>
     Matrix<T> :: Matrix(int rows, int cols)
         : rows_(rows), cols_(cols),data_(rows * cols, T(0)) {}
-    
+
+    // Creates a rows x cols matrix with every element set to initial_value.
     template <typename T>
     Matrix<T> :: Matrix(int rows, int cols, T initial_value)
         : rows_(rows), cols_(cols), data_(rows * cols, initial_value) {}
