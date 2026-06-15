@@ -6,6 +6,10 @@
 #include <stdexcept>
 #include <complex>
 
+namespace quantum {
+    template <typename T> class Vector;  // forward declaration
+}
+
 namespace quantum
 {
     template <typename T>
@@ -35,6 +39,10 @@ namespace quantum
             Matrix<T> operator+(const Matrix<T>& other) const;
             Matrix<T> operator-(const Matrix<T>& other) const;
             Matrix<T> operator*(const Matrix<T>& other) const;
+
+            //LU decomposition : L and U are output Parameters
+            bool lu_decompose(Matrix<T>& L, Matrix<T>& U) const;
+            Vector<T> solve(const Vector<T>& b) const;
 
             //Utility
             static Matrix<T> identity(int n);
@@ -144,6 +152,99 @@ namespace quantum
             }
             std::cout<<"\n";
         }
+    }
+
+    template <typename T>
+    bool Matrix<T> :: lu_decompose(Matrix<T>& L, Matrix<T>& U) const{
+        if(rows_ != cols_)
+        {
+            throw std::invalid_argument("LU decomposition requires a square matrix");
+        }
+
+        int n = rows_;
+        L = Matrix<T> (n,n);
+
+        for(int i = 0; i<n; i++)
+        {
+            //Upper Triangular - U row i
+            for(int k = i; k < n; k++)
+            {
+                T sum = T(0);
+                for(int j = 0; j < i; j++)
+                {
+                    sum += L(i,j) * U(j,k);
+                }
+                U(i,k) = (*this)(i,k) - sum;
+            }
+        
+
+            //Lower Triangular - L column i
+            for(int k = i; k < n; k++)
+            {
+                if( i == k){
+                    L(i,i) = T(1);
+                }
+                else{
+                    T sum = T(0);
+                    for(int j = 0; j < i; j++)
+                    {
+                        sum += L(k,j) * U(j,i);
+                    }
+                    if(U(i,i) == T(0)) return false; //cannot decompose
+                    L(k,i) = ((*this)(k,i) - sum) / U(i,i);
+                }
+            }
+        }
+        return true;
+    }
+
+    template <typename T>
+    Vector<T> Matrix<T> :: solve(const Vector<T>& b) const{
+        if(rows_ != cols_){
+            throw std :: invalid_argument("Solve requires square matrix");
+        }
+
+        if(b.size() != rows_)
+        {
+            throw std::invalid_argument("Vector size doesn't match matrix");
+        }
+
+        int n = rows_;
+        Matrix<T> L(n,n), U(n,n);
+        if(!lu_decompose(L,U))
+        {
+            throw std::runtime_error("LU decomposition failed");
+        }
+
+        /*  Forward substitution — L is lower triangular, so L * y = b can be solved top to bottom. The first equation has only y(0), the second has y(0) and y(1) (and we already know y(0)), and so on.
+            Back substitution — U is upper triangular, so U * x = y is solved bottom to top. The last equation has only x(n-1), then we work backwards.
+        */
+
+        //Forward Subsitution: Ly = b
+        Vector<T> y(n);
+        for(int i = 0; i< n;i++)
+        {
+            T sum = T(0);
+            for(int j = 0; j < i;j++)
+            {
+                sum += L(i,j) * y(j);
+            }
+
+            y(i) = (b(i) - sum) / L(i,i);
+        }
+
+        //Back subsitution: Ux = y
+        Vector<T> x(n);
+        for(int i = n-1; i>=0;i--)
+        {
+            T sum = T(0);
+            for(int j = i + 1; j < n;j++)
+            {
+                sum += U(i,j) * x(j);
+            }
+            x(i) = (y(i) - sum) /U(i,i);
+        }
+        return x;
     }
 
 }
