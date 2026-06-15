@@ -1,0 +1,47 @@
+[
+  {
+    "ticker": "ICICIBANK.NS",
+    "action": "BUY",
+    "price": 1225.0,
+    "qty": 12,
+    "stop": 1175.0,
+    "target": 1344.0,
+    "thesis": "To reap short term profit",
+    "strategy": "Trend",
+    "emotion": "7",
+    "timestamp": "2026-06-02T07:57:34.529472",
+    "id": 1,
+    "exit_price": 1236.0,
+    "exit_notes": "",
+    "exit_time": "2026-06-04T06:12:44.835717",
+    "pnl_pct": 0.9,
+    "pnl_inr": 132.0,
+    "outcome": "WIN"
+  },
+  {
+    "ticker": "EICHERMOT.NS",
+    "action": "BUY",
+    "price": 7150.0,
+    "qty": 3,
+    "stop": 6854.0,
+    "target": 7886.0,
+    "thesis": "Short Term Profit",
+    "strategy": "Trend",
+    "emotion": "7",
+    "timestamp": "2026-06-02T08:00:13.782772",
+    "id": 2
+  },
+  {
+    "ticker": "TITAN.NS",
+    "action": "BUY",
+    "price": 4155.0,
+    "qty": 5,
+    "stop": 3986.0,
+    "target": 4567.0,
+    "thesis": "Score 78, RSI 51 neutral, Z-score flat, consumer sector strength, Hurst 0.927 trending",
+    "strategy": "Trend",
+    "emotion": "7",
+    "timestamp": "2026-06-04T06:22:53.679989",
+    "id": 3
+  }
+]
