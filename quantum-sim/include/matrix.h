@@ -64,11 +64,17 @@ namespace quantum
     template <typename T>
     T& Matrix<T> ::operator()(int i, int j)
     {
+        if (i < 0 || i >= rows_ || j < 0 || j >= cols_) {
+            throw std::out_of_range("Matrix index out of bounds");
+        }
         return data_[i * cols_ + j ];
     }
     template <typename T>
     const T& Matrix<T>::operator()(int i, int j) const {
-    return data_[i * cols_ + j];
+        if (i < 0 || i >= rows_ || j < 0 || j >= cols_) {
+            throw std::out_of_range("Matrix index out of bounds");
+        }
+        return data_[i * cols_ + j];
     }
 
     template <typename T>
