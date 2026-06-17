@@ -42,6 +42,12 @@
     "strategy": "Trend",
     "emotion": "7",
     "timestamp": "2026-06-04T06:22:53.679989",
-    "id": 3
+    "id": 3,
+    "exit_price": 7553.0,
+    "exit_notes": "",
+    "exit_time": "2026-06-17T04:13:02.158569",
+    "pnl_pct": 81.78,
+    "pnl_inr": 16990.0,
+    "outcome": "WIN"
   }
 ]
