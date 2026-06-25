@@ -39,6 +39,8 @@ namespace quantum
             Matrix<T> operator+(const Matrix<T>& other) const;
             Matrix<T> operator-(const Matrix<T>& other) const;
             Matrix<T> operator*(const Matrix<T>& other) const;
+            Matrix<T> operator*(const T& s) const;
+            Vector<T> operator*(const Vector<T>& v) const;
 
             //LU decomposition : L and U are output Parameters
             bool lu_decompose(Matrix<T>& L, Matrix<T>& U) const;
@@ -252,7 +254,31 @@ namespace quantum
         }
         return x;
     }
-
+    template <typename T>
+    Matrix<T> Matrix<T>::operator*(const T& s) const {
+        Matrix<T> result(rows_, cols_);     // same shape
+        // single loop over all rows_*cols_ elements:
+        for(int i = 0; i < (rows_ * cols_); i++)
+        {
+            result.data_[i] = data_[i] * s;
+        }
+        //   result.data_[idx] = data_[idx] * s;
+        return result;
+    }
+    template <typename T>
+    Vector<T> Matrix<T>::operator*(const Vector<T>& v) const {
+        // dimension check: cols_ must equal v's length — throw if not (your method #1 habit)
+        Vector<T> result(rows_);              // length = number of rows
+        // double loop: for each row i, sum over columns j of A(i,j) * v(j)
+        for (int i = 0; i < rows_; ++i) {
+            T sum = T();                          // zero-init (works for double AND complex)
+            for (int j = 0; j < cols_; ++j) {
+                sum += data_[i * cols_ + j] * v(j);
+            }
+            result(i) = sum;
+        }
+        return result;
+    }
 }
 
 #endif
