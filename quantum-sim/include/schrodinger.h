@@ -15,7 +15,7 @@ namespace quantum
            using Complex = std :: complex<double>;
         public:
 
-           SchrodingerEquation(double length,int n_points,double mass,double hbar,double dt,double x0, double sigma, double k0 )
+           SchrodingerEquation(double length,int n_points,double mass,double hbar,double dt,double x0, double sigma, double k0,double barrier_center,double barrier_width,double V0 )
            :
             length_(length),
             n_points_(n_points),
@@ -26,6 +26,9 @@ namespace quantum
             sigma_(sigma),
             k0_(k0),
             dx_(length / (n_points - 1)),
+            barrier_center_(barrier_center),
+            barrier_width_(barrier_width),
+            V0_(V0),
             psi_(n_points),
             A_(n_points,n_points),
             B_(n_points,n_points)
@@ -39,6 +42,7 @@ namespace quantum
 
             void step();
             const Vector<Complex>& state() const {return psi_;}
+            double potential(double x) const;
             void output(std :: ofstream& out) const;
 
         private:
@@ -51,6 +55,9 @@ namespace quantum
             double sigma_;
             double k0_;
             double dx_;
+            double barrier_center_;
+            double barrier_width_;
+            double V0_;
 
             Vector<Complex> psi_;
             Matrix<Complex> A_;
@@ -69,7 +76,8 @@ namespace quantum
 
         for(int i = 1; i < n_points_ - 1; ++i)
         {
-            H(i,i) = diag;
+            double x = i * dx_;
+            H(i,i) = diag + potential(x);
             H(i,i-1) = offdiag;
             H(i,i+1) = offdiag;
         }
@@ -107,6 +115,15 @@ namespace quantum
         }
         psi_.normalize();
     }
+    double SchrodingerEquation::potential(double x) const {
+        double left  = barrier_center_ - barrier_width_ / 2.0;
+        double right = barrier_center_ + barrier_width_ / 2.0;
+        if (x >= left && x < right) {
+            return V0_;
+        }
+        return 0.0;
+    }
+
     void SchrodingerEquation::output(std::ofstream& out) const {
         for (int i = 0; i < n_points_; ++i) {
             out << std::norm(psi_(i));        // |psi|^2  (squared magnitude, real double)
@@ -114,6 +131,8 @@ namespace quantum
         }
         out << "\n";
     }
+
+
 }
 
 

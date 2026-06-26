@@ -14,13 +14,16 @@ int main() {
     double x0    = length / 4.0;    // start in left quarter, room to travel right
     double sigma = length / 20.0;   // narrow-ish but resolved
     double k0    = -500.0;           // POSITIVE → moves right; large enough to actually travel
+    double barrier_center = 0.5;
+    double barrier_width = 0.02;
+    double V0 = 140000;
 
     quantum::SchrodingerEquation sim(length, n_points, mass, hbar, dt,
-                                     x0, sigma, k0);   // match YOUR ctor arg order
+                                     x0, sigma, k0,barrier_center,barrier_width,V0);   // match YOUR ctor arg order
 
     std::ofstream out("schrodinger_output.csv");       // open ONCE (method #10)
 
-    int n_steps = 300;
+    int n_steps = 1500;
     int output_every = 20;                             // ~100 snapshots, not 2000
 
     for (int s = 0; s < n_steps; ++s) {
