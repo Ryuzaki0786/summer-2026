@@ -5,7 +5,7 @@
 int main() {
     // --- physical/grid parameters ---
     double length   = 1.0;          // domain [0, length]
-    int    n_points = 150;          // grid resolution
+    int    n_points = 500;          // grid resolution
     double mass     = 1.0;          // natural units for a first test
     double hbar     = 1.0;
     double dt       = 1e-5;         // SEE NOTE on dt below
@@ -13,7 +13,7 @@ int main() {
     // --- wavepacket parameters ---
     double x0    = length / 4.0;    // start in left quarter, room to travel right
     double sigma = length / 20.0;   // narrow-ish but resolved
-    double k0    = -500.0;           // POSITIVE → moves right; large enough to actually travel
+    double k0    = -500.0;           // +k0 propagates left, non-standard
     double barrier_center = 0.5;
     double barrier_width = 0.02;
     double V0 = 140000;
