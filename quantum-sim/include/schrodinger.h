@@ -31,7 +31,9 @@ namespace quantum
             V0_(V0),
             psi_(n_points),
             A_(n_points,n_points),
-            B_(n_points,n_points)
+            B_(n_points,n_points),
+            L_(n_points,n_points),
+            U_(n_points,n_points)
             {
                 if (n_points < 3) throw std::invalid_argument("need >= 3 points");
                 if (dt <= 0.0 || length <= 0.0)
@@ -62,6 +64,8 @@ namespace quantum
             Vector<Complex> psi_;
             Matrix<Complex> A_;
             Matrix<Complex> B_;
+            Matrix<Complex> L_;
+            Matrix<Complex> U_;
 
             void buildOperators();
             void initializeWavepacket();
@@ -96,12 +100,17 @@ namespace quantum
         B_(0, 0) = 1.0;  B_(0, 1) = 0.0;
         A_(last, last) = 1.0;  A_(last, last - 1) = 0.0;
         B_(last, last) = 1.0;  B_(last, last - 1) = 0.0;
+
+        if (!A_.lu_decompose(L_, U_)) {
+            throw std::runtime_error("Failed to factor Crank-Nicolson matrix A");
+        }
+
     }
 
     void SchrodingerEquation :: step()
     {
         Vector<Complex> b = B_ * psi_;
-        psi_ =  A_.solve(b);
+        psi_ =  A_.solve_with_LU(L_,U_,b);
     }
 
     void SchrodingerEquation :: initializeWavepacket()

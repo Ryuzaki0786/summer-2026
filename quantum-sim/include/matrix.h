@@ -41,6 +41,7 @@ namespace quantum
             Matrix<T> operator*(const Matrix<T>& other) const;
             Matrix<T> operator*(const T& s) const;
             Vector<T> operator*(const Vector<T>& v) const;
+            Vector<T> solve_with_LU(const Matrix<T>& L, const Matrix<T>& U, const Vector<T>& b);
 
             //LU decomposition : L and U are output Parameters
             bool lu_decompose(Matrix<T>& L, Matrix<T>& U) const;
@@ -278,6 +279,32 @@ namespace quantum
             result(i) = sum;
         }
         return result;
+    }
+    template <typename T>
+    Vector<T> Matrix<T>::solve_with_LU(const Matrix<T>& L, const Matrix<T>& U,
+                                    const Vector<T>& b) {
+        int n = L.rows_;
+
+        // Forward substitution: L y = b
+        Vector<T> y(n);
+        for (int i = 0; i < n; i++) {
+            T sum = T(0);
+            for (int j = 0; j < i; j++) {
+                sum += L(i, j) * y(j);
+            }
+            y(i) = (b(i) - sum) / L(i, i);
+        }
+
+        // Back substitution: U x = y
+        Vector<T> x(n);
+        for (int i = n - 1; i >= 0; i--) {
+            T sum = T(0);
+            for (int j = i + 1; j < n; j++) {
+                sum += U(i, j) * x(j);
+            }
+            x(i) = (y(i) - sum) / U(i, i);
+        }
+        return x;
     }
 }
 
