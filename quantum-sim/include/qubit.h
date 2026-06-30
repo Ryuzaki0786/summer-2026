@@ -67,7 +67,7 @@ namespace quantum {
     }
 
     void Qubit :: normalize(){
-        state_.normalize();
+        state_ = state_.normalize();
     }
 
     void Qubit ::applyGate(const Matrix<Complex>& gate){

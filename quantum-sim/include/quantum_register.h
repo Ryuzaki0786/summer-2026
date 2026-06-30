@@ -5,6 +5,7 @@
 #include <complex>
 #include <stdexcept>
 #include <cmath>
+#include <random>
 #include "matrix.h"
 #include "vector.h"
 
@@ -25,6 +26,8 @@ namespace quantum {
             void applyGateToQubit(const Matrix<Complex>& gate,int target);
 
             void applyCNOT(int control,int target);
+
+            int measureQubit (int target);
 
             void print() const;
 
@@ -84,7 +87,7 @@ namespace quantum {
             throw std::invalid_argument("CNOT qubit index out of range");
         if (control == target)
             throw std::invalid_argument("CNOT control and target must differ");
-            
+
         int c = 1 << control;
         int t = 1 << target;
 
@@ -98,6 +101,37 @@ namespace quantum {
                 state_(j) = temp;
             }
         }
+    }
+
+    int QuantumRegister :: measureQubit(int target){
+        int t = 1 << target;
+
+        double p0 = 0.0;
+        //P(0) = sum of |amplitude|^2 where target bit is 0
+        for(int i = 0; i < size(); i++)
+        {
+            if((i & t) == 0) p0 += std::norm(state_(i));
+        }
+
+        //random draw
+        static std:: random_device rd;
+        static std:: mt19937 gen(rd());
+        static std :: uniform_real_distribution<double> dist(0.0,1.0);
+        double r = dist(gen);
+        int outcome = (r < p0) ? 0 : 1;
+
+        //Collapse - zero out amplitudes inconsistent with the outcome
+        for(int i = 0; i < size(); i++)
+        {
+            int bit_value = ((i & t) != 0) ? 1 : 0;   // target qubit's value in basis state i
+            if (bit_value != outcome) {
+                state_(i) = Complex(0.0, 0.0);        // inconsistent → zero it
+            }
+        }
+
+        state_ = state_.normalize();
+
+        return outcome;
     }
 
 }
