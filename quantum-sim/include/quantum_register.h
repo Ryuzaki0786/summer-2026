@@ -24,6 +24,8 @@ namespace quantum {
 
             void applyGateToQubit(const Matrix<Complex>& gate,int target);
 
+            void applyCNOT(int control,int target);
+
             void print() const;
 
             const Vector<Complex>& state() const {return state_; }
@@ -75,7 +77,29 @@ namespace quantum {
             }
         }
     }
-    
+
+    void QuantumRegister :: applyCNOT(int control, int target){
+
+        if (control < 0 || control >= n_qubits_ || target < 0 || target >= n_qubits_)
+            throw std::invalid_argument("CNOT qubit index out of range");
+        if (control == target)
+            throw std::invalid_argument("CNOT control and target must differ");
+            
+        int c = 1 << control;
+        int t = 1 << target;
+
+        for(int i = 0; i < size(); i++)
+        {
+            if((i & c) != 0 && (i & t) == 0){
+                int j = i | t;
+
+                Complex temp = state_(i);
+                state_(i) = state_(j);
+                state_(j) = temp;
+            }
+        }
+    }
+
 }
 
 #endif

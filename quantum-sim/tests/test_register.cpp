@@ -29,5 +29,13 @@ int main() {
         std::cout << "P(" << i << ")=" << reg3.probability(i) << "  ";
     std::cout << "\n(expect P(0)=0.5, P(2)=0.5, others 0)\n";
 
+
+    std::cout << "=== Bell state: H(q0) then CNOT(0->1) ===\n";
+    QuantumRegister bell(2);                      // |00> = [1,0,0,0]
+    bell.applyGateToQubit(gates::hadamard(), 0);  // -> [1/√2, 0, 1/√2, 0]
+    bell.applyCNOT(0, 1);                         // control=0, target=1 -> entangle
+    for (int i = 0; i < 4; i++)
+        std::cout << "P(" << i << ")=" << bell.probability(i) << "  ";
+    std::cout << "\n(expect P(0)=0.5, P(3)=0.5, P(1)=P(2)=0)\n";
     return 0;
 }
